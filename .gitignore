@@ -1,0 +1,7 @@
+.vagrant
+*.pyc
+*.sublime-*
+*.db
+.DS_Store
+*.ipynb
+app.yaml

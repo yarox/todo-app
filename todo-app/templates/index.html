@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TODO app</title>
+
+    <link href="/static/css/bootstrap.css" rel="stylesheet">
+    <link href="/static/css/font-awesome.min.css" rel="stylesheet">
+  </head>
+
+  <body>
+
+    <div class="panel panel-default">
+      <div class="page-header">
+        <h1>TODO app <small>super simple TODO app</small></h1>
+      </div>
+
+      <div class="panel-body">
+
+        <div class="well">
+
+          <form class="" role="form">
+            <div class="form-group">
+              <input type="text" class="form-control" id="todo" placeholder="Enter some text">
+            </div>
+            <div class="form-group">
+              <input type="text" class="form-control" id="tags" placeholder="Enter, some, tags">
+            </div>
+
+            <button id="save" type="button" class="btn btn-default">Save</button>
+            <button id="sync" type="button" class="btn btn-default">Sync</button>
+
+          </form>
+
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-heading">
+
+            <form class="form-inline" role="form">
+              <div class="form-group">
+                <input type="text" class="form-control" id="tagFilter" placeholder="tags or leave empty">
+              </div>
+              <button id="show" type="button" class="btn btn-default">Show tasks</button>
+            </form>
+
+          </div>
+          <div class="panel-body">
+             <p>Elements stored locally</p>
+           </div>
+          <ul id="todoItems" class="list-group"></ul>
+        </div>
+      </div>
+    </div>
+
+  </body>
+
+  <script src="/static/js/jquery-1.10.2.min.js"></script>
+  <script>
+    $.postJSON = function(url, data, callback) {
+      $.ajax({
+        type : 'POST',
+        url : url,
+        data: JSON.stringify(data),
+        contentType: 'application/json; charset=UTF-8',
+        success: callback
+      });
+    };
+
+
+    var db;
+
+    var DB_NAME = 'todo-db';
+    var DB_VERSION = 1;
+    var DB_STORE_NAME = 'todo-store';
+
+
+    onDbError = function(e) {
+      console.log(e);
+    };
+
+    function openDb() {
+      var request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = function(e) {
+        var store = e.currentTarget.result.createObjectStore(
+                    DB_STORE_NAME, { autoIncrement: true });
+
+        store.createIndex("isDeleted", "isDeleted", { unique: false });
+
+        e.target.transaction.onerror = onDbError;
+      };
+
+      request.onsuccess = function(e) {
+        db = e.target.result;
+        showItems();
+      };
+
+      request.onerror = onDbError;
+    }
+
+    function getObjectStore(storeName, mode) {
+      var trans = db.transaction([storeName], mode);
+      return trans.objectStore(storeName);
+    }
+
+    function getAllItems(callback) {
+      var elements = [];
+
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var index = store.index("isDeleted");
+      var keyRange = IDBKeyRange.only("false");
+      var cursorRequest = index.openCursor(keyRange);
+
+      cursorRequest.onsuccess = function(event) {
+        var result = event.target.result;
+
+        if (result) {
+          elements.push({
+            'value': result.value,
+            'key': result.primaryKey
+          });
+
+          result.continue();
+        } else {
+          callback(elements);
+        }
+      };
+
+      cursorRequest.onerror = onDbError;
+    }
+
+    function getNewItems(callback) {
+      var lastKey = parseInt(localStorage['lastKey'] ? localStorage['lastKey'] : 0);
+      var elements = [];
+
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var keyRange = IDBKeyRange.lowerBound(lastKey, true);
+      var cursorRequest = store.openCursor(keyRange);
+
+      cursorRequest.onsuccess = function(event) {
+        var result = event.target.result;
+        console.log(result);
+
+        if (result) {
+          elements.push({
+            'value': result.value,
+            'key': result.primaryKey
+          });
+
+          result.continue();
+        } else {
+          callback(elements);
+        }
+      };
+
+      cursorRequest.onerror = onDbError;
+    }
+
+    function getDeletedItems(callback) {
+      var elements = [];
+
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var index = store.index("isDeleted");
+      var keyRange = IDBKeyRange.only("true");
+      var cursorRequest = index.openCursor(keyRange);
+
+      cursorRequest.onsuccess = function(e) {
+        var result = e.target.result;
+
+        if (result) {
+          elements.push({
+            'value': result.value,
+            'key': result.primaryKey
+          });
+
+          result.continue();
+        } else {
+          callback(elements);
+        }
+      };
+
+      cursorRequest.onerror = onDbError;
+    }
+
+    function syncItems() {
+      getNewItems(function (newItems) {
+        getDeletedItems(function (deletedItems) {
+          var data = {
+            'new_items': newItems,
+            'deleted_items': deletedItems
+          };
+
+          console.log(newItems);
+          console.log(deletedItems);
+
+          if (newItems.length || deletedItems.length) {
+            $.postJSON('/sync', data, function (response) {
+              console.log(response);
+
+              for (var i = 0; i < deletedItems.length; i++) {
+                hardDeleteItem(deletedItems[i].key);
+              }
+
+              if (newItems.length) {
+                localStorage['lastKey'] = newItems[newItems.length - 1]['key']
+              }
+            });
+          }
+        });
+      });
+    }
+
+    function showItems() {
+      var todos = document.getElementById("todoItems");
+      var tagFilter = document.getElementById("tagFilter");
+      var tags = tagFilter.value.split(',');
+
+      todos.innerHTML = "";
+      tagFilter.value = "";
+
+      getAllItems(function (elements) {
+        for (var i = 0; i < elements.length; i++) {
+          renderItem(elements[i]);
+        }
+      });
+    }
+
+    function addItem() {
+      var todo = document.getElementById("todo");
+      var tags = document.getElementById("tags");
+
+      var data = {
+        "text": todo.value ? todo.value : "<empty>",
+        "tags": tags.value.split(","),
+        "isDeleted": "false",
+        "timestamp": new Date().getTime() / 1000
+      };
+
+      todo.value = "";
+      tags.value = "";
+
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var request = store.put(data);
+
+      request.onsuccess = function(e) {
+        console.log("todo item added");
+      };
+
+      request.onerror = function(e) {
+        console.log("Error Adding: ", e);
+      };
+    }
+
+    function deleteItem(id) {
+      var lastKey = localStorage['lastKey'] ? localStorage['lastKey'] : 0;
+
+      if (id > lastKey) {
+        hardDeleteItem(id);
+      } else {
+        softDeleteItem(id);
+      }
+    }
+
+    function hardDeleteItem(id) {
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var request = store.delete(id);
+
+      request.onsuccess = function(e) {
+        showItems();
+      };
+
+      request.onerror = function(e) {
+        console.log("Error Deleting: ", e);
+      };
+    }
+
+    function softDeleteItem(id) {
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var request = store.get(id);
+
+      request.onsuccess = function(e) {
+        var data = request.result;
+        data.isDeleted = "true";
+
+        var requestUpdate = store.put(data, id);
+
+        requestUpdate.onsuccess = function(event) {
+          showItems();
+        };
+
+        requestUpdate.onerror = function(event) {
+          console.log("error updating: ", event);
+        };
+      };
+
+      request.onerror = function(e) {
+        console.log("error disabling: ", e);
+      };
+    }
+
+    function renderItem(element) {
+      var row = element.value;
+      var key = element.key;
+
+      var todos = document.getElementById("todoItems");
+      var li = document.createElement("li");
+      var x = document.createElement("button");
+      var t = document.createElement("span");
+
+      x.addEventListener("click", function() {
+        deleteItem(key);
+      }, false);
+
+      x.className = "close";
+      x.innerHTML = "&times;";
+      x.setAttribute("aria-hidden", "true")
+
+      li.className = "list-group-item"
+      li.id = key;
+
+      t.textContent = row.text;
+
+      li.appendChild(t);
+      li.appendChild(x);
+      todos.appendChild(li);
+    }
+
+    function init() {
+      openDb();
+
+      document.querySelector("#save").addEventListener("click", addItem, false);
+      document.querySelector("#sync").addEventListener("click", syncItems, false);
+      document.querySelector("#show").addEventListener("click", showItems, false);
+    }
+
+    window.addEventListener("DOMContentLoaded", init, false);
+  </script>
+
+</html>
