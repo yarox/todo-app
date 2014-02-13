@@ -31,7 +31,7 @@ if [ ! -f /home/vagrant/.first_run ]; then
     echo "# Custom Vagrant configuration" >> /home/vagrant/.zshrc
     echo "bindkey '[D' backward-word" >> /home/vagrant/.zshrc
     echo "bindkey '[C' forward-word" >> /home/vagrant/.zshrc
-    echo "cd /hotaround" >> /home/vagrant/.zshrc
+    echo "cd /todo-app" >> /home/vagrant/.zshrc
     echo "alias notebook='ipython notebook --pylab=inline --no-browser --ip=0.0.0.0 --port=8888'" >> /home/vagrant/.zshrc
     echo "alias dev_appserver='/google_appengine/dev_appserver.py --port=8888 --host=0.0.0.0 --admin_port=9999 --admin_host=0.0.0.0 .'" >> /home/vagrant/.zshrc
 
