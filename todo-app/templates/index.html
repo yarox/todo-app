@@ -69,13 +69,16 @@
       });
     };
 
-
     var db;
 
     var DB_NAME = 'todo-db';
     var DB_VERSION = 1;
     var DB_STORE_NAME = 'todo-store';
 
+    // TODO: cuando se guarde un elemento en webStorage, acordarse de parsearlo
+    // porque todo se guarda como una string. Ej.: parseInt.
+    var clientTimestamp = 0;
+    var serverTimestamp = 0;
 
     onDbError = function(e) {
       console.log(e);
@@ -89,6 +92,7 @@
                     DB_STORE_NAME, { autoIncrement: true });
 
         store.createIndex("isDeleted", "isDeleted", { unique: false });
+        store.createIndex("key", "key", { unique: false });
 
         e.target.transaction.onerror = onDbError;
       };
@@ -133,23 +137,24 @@
     }
 
     function getNewItems(callback) {
-      var lastKey = parseInt(localStorage['lastKey'] ? localStorage['lastKey'] : 0);
       var elements = [];
 
       var store = getObjectStore(DB_STORE_NAME, 'readwrite');
-      var keyRange = IDBKeyRange.lowerBound(lastKey, true);
-      var cursorRequest = store.openCursor(keyRange);
+      var index = store.index('key');
+      var keyRange = IDBKeyRange.only('');
+      var cursorRequest = index.openCursor(keyRange);
 
       cursorRequest.onsuccess = function(event) {
         var result = event.target.result;
-        console.log(result);
 
         if (result) {
           elements.push({
+            'object': getObject(result.value),
             'value': result.value,
             'key': result.primaryKey
           });
 
+          clientTimestamp = result.value.timestamp;
           result.continue();
         } else {
           callback(elements);
@@ -172,6 +177,7 @@
 
         if (result) {
           elements.push({
+            'object': getObject(result.value),
             'value': result.value,
             'key': result.primaryKey
           });
@@ -189,28 +195,73 @@
       getNewItems(function (newItems) {
         getDeletedItems(function (deletedItems) {
           var data = {
-            'new_items': newItems,
-            'deleted_items': deletedItems
+            'items_new': newItems,
+            'items_delete': deletedItems,
+            'server_timestamp': serverTimestamp
           };
 
           console.log(newItems);
           console.log(deletedItems);
 
-          if (newItems.length || deletedItems.length) {
-            $.postJSON('/sync', data, function (response) {
-              console.log(response);
+          $.postJSON('/sync', data, function (response) {
+            console.log(response);
 
-              for (var i = 0; i < deletedItems.length; i++) {
-                hardDeleteItem(deletedItems[i].key);
-              }
+            for (var i = 0; i < deletedItems.length; i++) {
+              hardDeleteItem(deletedItems[i].key);
+            }
 
-              if (newItems.length) {
-                localStorage['lastKey'] = newItems[newItems.length - 1]['key']
-              }
-            });
-          }
+            // for (var i = 0; i < request.deletedItems.length; i++) {
+            //   hardDeleteItem(request.deletedItems[i].key);
+            // }
+
+            for (var i = 0; i < response.itemsServer.length; i++) {
+              addServerItem(response.itemsServer[i]);
+            }
+
+            for (var i = 0; i < response.itemsClient.length; i++) {
+              id = newItems[i].key;
+              updateItem(id, 'key', response.itemsClient[i].key);
+            }
+
+            serverTimestamp = response.serverTimestamp;
+          });
+
         });
       });
+    }
+
+    function getObject(result) {
+      var object = {
+        'text': result.text,
+        'tags': result.tags,
+        'client_timestamp': result.timestamp
+      };
+
+      return object;
+    }
+
+    function updateItem(id, field, value) {
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var request = store.get(id);
+
+      request.onsuccess = function(e) {
+        var data = request.result;
+        data[field] = value;
+
+        var requestUpdate = store.put(data, id);
+
+        requestUpdate.onsuccess = function(event) {
+          console.log('item updated');
+        };
+
+        requestUpdate.onerror = function(event) {
+          console.log("error updating: ", event);
+        };
+      };
+
+      request.onerror = function(e) {
+        console.log("error disabling: ", e);
+      };
     }
 
     function showItems() {
@@ -228,36 +279,49 @@
       });
     }
 
-    function addItem() {
-      var todo = document.getElementById("todo");
-      var tags = document.getElementById("tags");
+    function addServerItem(item) {
+      item.isDeleted = item.is_deleted.toString();
+
+      delete item.client_timestamp;
+      delete item.server_timestamp;
+      delete item.is_deleted;
+
+      addItem(item);
+    }
+
+    function addClientItem() {
+      var todo = document.getElementById('todo');
+      var tags = document.getElementById('tags');
 
       var data = {
-        "text": todo.value ? todo.value : "<empty>",
-        "tags": tags.value.split(","),
-        "isDeleted": "false",
-        "timestamp": new Date().getTime() / 1000
+        'key': '',
+        'text': todo.value || '<empty>',
+        'tags': tags.value ? tags.value.split(',') : [],
+        'isDeleted': 'false',
+        'timestamp': new Date().getTime() / 1000
       };
 
-      todo.value = "";
-      tags.value = "";
+      todo.value = '';
+      tags.value = '';
 
+      addItem(data);
+    }
+
+    function addItem(data) {
       var store = getObjectStore(DB_STORE_NAME, 'readwrite');
       var request = store.put(data);
 
       request.onsuccess = function(e) {
-        console.log("todo item added");
+        console.log('todo item added');
       };
 
       request.onerror = function(e) {
-        console.log("Error Adding: ", e);
+        console.log('error adding:', e);
       };
     }
 
     function deleteItem(id) {
-      var lastKey = localStorage['lastKey'] ? localStorage['lastKey'] : 0;
-
-      if (id > lastKey) {
+      if (id > clientTimestamp) {
         hardDeleteItem(id);
       } else {
         softDeleteItem(id);
@@ -278,27 +342,7 @@
     }
 
     function softDeleteItem(id) {
-      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
-      var request = store.get(id);
-
-      request.onsuccess = function(e) {
-        var data = request.result;
-        data.isDeleted = "true";
-
-        var requestUpdate = store.put(data, id);
-
-        requestUpdate.onsuccess = function(event) {
-          showItems();
-        };
-
-        requestUpdate.onerror = function(event) {
-          console.log("error updating: ", event);
-        };
-      };
-
-      request.onerror = function(e) {
-        console.log("error disabling: ", e);
-      };
+      updateItem(id, 'isDeleted', 'true');
     }
 
     function renderItem(element) {
@@ -331,7 +375,7 @@
     function init() {
       openDb();
 
-      document.querySelector("#save").addEventListener("click", addItem, false);
+      document.querySelector("#save").addEventListener("click", addClientItem, false);
       document.querySelector("#sync").addEventListener("click", syncItems, false);
       document.querySelector("#show").addEventListener("click", showItems, false);
     }
