@@ -92,7 +92,7 @@
                     DB_STORE_NAME, { autoIncrement: true });
 
         store.createIndex("isDeleted", "isDeleted", { unique: false });
-        store.createIndex("key", "key", { unique: false });
+        store.createIndex("serverKey", "serverKey", { unique: false });
 
         e.target.transaction.onerror = onDbError;
       };
@@ -140,7 +140,7 @@
       var elements = [];
 
       var store = getObjectStore(DB_STORE_NAME, 'readwrite');
-      var index = store.index('key');
+      var index = store.index('serverKey');
       var keyRange = IDBKeyRange.only('');
       var cursorRequest = index.openCursor(keyRange);
 
@@ -210,9 +210,9 @@
               hardDeleteItem(deletedItems[i].key);
             }
 
-            // for (var i = 0; i < request.deletedItems.length; i++) {
-            //   hardDeleteItem(request.deletedItems[i].key);
-            // }
+            for (var i = 0; i < response.itemsDelete.length; i++) {
+              hardDeleteItemFromKey(response.itemsDelete[i].server_key);
+            }
 
             for (var i = 0; i < response.itemsServer.length; i++) {
               addServerItem(response.itemsServer[i]);
@@ -220,7 +220,7 @@
 
             for (var i = 0; i < response.itemsClient.length; i++) {
               id = newItems[i].key;
-              updateItem(id, 'key', response.itemsClient[i].key);
+              updateItem(id, 'serverKey', response.itemsClient[i].server_key);
             }
 
             serverTimestamp = response.serverTimestamp;
@@ -281,10 +281,12 @@
 
     function addServerItem(item) {
       item.isDeleted = item.is_deleted.toString();
+      item.serverKey = item.server_key;
 
       delete item.client_timestamp;
       delete item.server_timestamp;
       delete item.is_deleted;
+      delete item.server_key;
 
       addItem(item);
     }
@@ -294,7 +296,7 @@
       var tags = document.getElementById('tags');
 
       var data = {
-        'key': '',
+        'serverKey': '',
         'text': todo.value || '<empty>',
         'tags': tags.value ? tags.value.split(',') : [],
         'isDeleted': 'false',
@@ -326,6 +328,24 @@
       } else {
         softDeleteItem(id);
       }
+    }
+
+    function hardDeleteItemFromKey(key) {
+      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var index = store.index('serverKey');
+      var request = index.getKey(key);
+
+      request.onsuccess = function(e) {
+        var id = e.target.result;
+
+        if (typeof(id) !== 'undefined'){
+          hardDeleteItem(e.target.result);
+        }
+      };
+
+      request.onerror = function(e) {
+        console.log('error deleting:', e);
+      };
     }
 
     function hardDeleteItem(id) {

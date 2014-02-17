@@ -51,7 +51,7 @@ class Item(ndb.Model):
     def to_dict(self):
         result = super(Item, self).to_dict()
         result['timestamp'] = datetime2unix(self.client_timestamp)
-        result['key'] = self.key.urlsafe()
+        result['server_key'] = self.key.urlsafe()
 
         return result
 
