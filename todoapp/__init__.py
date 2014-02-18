@@ -91,7 +91,7 @@ def sync():
 
     # 3. actualizar en el servidor los elementos marcados para borrar del
     #    cliente y actualizar su server_timestamp.
-    items_update = ndb.get_multi([ndb.Key(urlsafe=item['value']['key']) for item in request.json['items_delete']])
+    items_update = ndb.get_multi([ndb.Key(urlsafe=item['value']['serverKey']) for item in request.json['items_delete']])
 
     for item in items_update:
         item.is_deleted = True

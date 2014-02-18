@@ -139,7 +139,7 @@
     function getNewItems(callback) {
       var elements = [];
 
-      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var store = getObjectStore(DB_STORE_NAME, 'readonly');
       var index = store.index('serverKey');
       var keyRange = IDBKeyRange.only('');
       var cursorRequest = index.openCursor(keyRange);
@@ -167,7 +167,7 @@
     function getDeletedItems(callback) {
       var elements = [];
 
-      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var store = getObjectStore(DB_STORE_NAME, 'readonly');
       var index = store.index("isDeleted");
       var keyRange = IDBKeyRange.only("true");
       var cursorRequest = index.openCursor(keyRange);
@@ -315,6 +315,7 @@
 
       request.onsuccess = function(e) {
         console.log('todo item added');
+        showItems();
       };
 
       request.onerror = function(e) {
@@ -322,16 +323,18 @@
       };
     }
 
-    function deleteItem(id) {
-      if (id > clientTimestamp) {
-        hardDeleteItem(id);
+    function deleteItem(item) {
+      if (!item.value.serverKey) {
+        hardDeleteItem(item.key);
       } else {
-        softDeleteItem(id);
+        softDeleteItem(item.key);
       }
+
+      showItems();
     }
 
     function hardDeleteItemFromKey(key) {
-      var store = getObjectStore(DB_STORE_NAME, 'readwrite');
+      var store = getObjectStore(DB_STORE_NAME, 'readonly');
       var index = store.index('serverKey');
       var request = index.getKey(key);
 
@@ -353,7 +356,7 @@
       var request = store.delete(id);
 
       request.onsuccess = function(e) {
-        showItems();
+        console.log('deleted item');
       };
 
       request.onerror = function(e) {
@@ -365,9 +368,9 @@
       updateItem(id, 'isDeleted', 'true');
     }
 
-    function renderItem(element) {
-      var row = element.value;
-      var key = element.key;
+    function renderItem(item) {
+      var row = item.value;
+      var key = item.key;
 
       var todos = document.getElementById("todoItems");
       var li = document.createElement("li");
@@ -375,7 +378,7 @@
       var t = document.createElement("span");
 
       x.addEventListener("click", function() {
-        deleteItem(key);
+        deleteItem(item);
       }, false);
 
       x.className = "close";
