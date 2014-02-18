@@ -93,6 +93,7 @@
 
         store.createIndex("isDeleted", "isDeleted", { unique: false });
         store.createIndex("serverKey", "serverKey", { unique: false });
+        store.createIndex("tags", "tags", { unique: false, multiEntry: true });
 
         e.target.transaction.onerror = onDbError;
       };
@@ -142,6 +143,34 @@
       var store = getObjectStore(DB_STORE_NAME, 'readonly');
       var index = store.index('serverKey');
       var keyRange = IDBKeyRange.only('');
+      var cursorRequest = index.openCursor(keyRange);
+
+      cursorRequest.onsuccess = function(event) {
+        var result = event.target.result;
+
+        if (result) {
+          elements.push({
+            'object': getObject(result.value),
+            'value': result.value,
+            'key': result.primaryKey
+          });
+
+          clientTimestamp = result.value.timestamp;
+          result.continue();
+        } else {
+          callback(elements);
+        }
+      };
+
+      cursorRequest.onerror = onDbError;
+    }
+
+    function getTaggedItems(tag, callback) {
+      var elements = [];
+
+      var store = getObjectStore(DB_STORE_NAME, 'readonly');
+      var index = store.index('tags');
+      var keyRange = IDBKeyRange.only(tag);
       var cursorRequest = index.openCursor(keyRange);
 
       cursorRequest.onsuccess = function(event) {
@@ -265,18 +294,31 @@
     }
 
     function showItems() {
-      var todos = document.getElementById("todoItems");
-      var tagFilter = document.getElementById("tagFilter");
-      var tags = tagFilter.value.split(',');
+      var todos = document.getElementById('todoItems');
+      var tagFilter = document.getElementById('tagFilter');
+      var tags = tagFilter.value ? tagFilter.value.replace(/\s/g, '').split(',') : [];
 
       todos.innerHTML = "";
       tagFilter.value = "";
 
-      getAllItems(function (elements) {
-        for (var i = 0; i < elements.length; i++) {
-          renderItem(elements[i]);
-        }
-      });
+      if (tags.length) {
+        console.log(tags);
+
+        getTaggedItems(tags[0], function(elements) {
+          console.log('callback');
+          console.log(elements);
+
+          for (var i = 0; i < elements.length; i++) {
+            renderItem(elements[i]);
+          }
+        });
+      } else {
+        getAllItems(function(elements) {
+          for (var i = 0; i < elements.length; i++) {
+            renderItem(elements[i]);
+          }
+        });
+      }
     }
 
     function addServerItem(item) {
@@ -298,7 +340,7 @@
       var data = {
         'serverKey': '',
         'text': todo.value || '<empty>',
-        'tags': tags.value ? tags.value.split(',') : [],
+        'tags': tags.value ? tags.value.replace(/\s/g, '').split(',') : [],
         'isDeleted': 'false',
         'timestamp': new Date().getTime() / 1000
       };
