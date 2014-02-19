@@ -451,6 +451,8 @@
 
       document.querySelector("#save").addEventListener("click", addClientItem, false);
       document.querySelector("#show").addEventListener("click", showItems, false);
+
+      setInterval(syncItems, 10000);
     }
 
     window.addEventListener("DOMContentLoaded", init, false);
