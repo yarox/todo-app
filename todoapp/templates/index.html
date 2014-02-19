@@ -6,7 +6,8 @@
 
     <title>TODO app</title>
 
-    <link href="/static/css/bootstrap.css" rel="stylesheet">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
     <link href="/static/css/font-awesome.min.css" rel="stylesheet">
   </head>
 
@@ -47,9 +48,10 @@
             </form>
 
           </div>
-          <div class="panel-body">
+         <!--  <div class="panel-body">
              <p>Elements stored locally</p>
-           </div>
+          </div> -->
+
           <ul id="todoItems" class="list-group"></ul>
         </div>
       </div>
@@ -75,10 +77,6 @@
     var DB_VERSION = 1;
     var DB_STORE_NAME = 'todo-store';
 
-    // TODO: cuando se guarde un elemento en webStorage, acordarse de parsearlo
-    // porque todo se guarda como una string. Ej.: parseInt.
-    var clientTimestamp = 0;
-    var serverTimestamp = 0;
 
     onDbError = function(e) {
       console.log(e);
@@ -155,7 +153,6 @@
             'key': result.primaryKey
           });
 
-          clientTimestamp = result.value.timestamp;
           result.continue();
         } else {
           callback(elements);
@@ -165,7 +162,7 @@
       cursorRequest.onerror = onDbError;
     }
 
-    function getTaggedItems(tag, callback) {
+    function getTaggedItems(tag, shownElements, callback) {
       var elements = [];
 
       var store = getObjectStore(DB_STORE_NAME, 'readonly');
@@ -177,13 +174,15 @@
         var result = event.target.result;
 
         if (result) {
-          elements.push({
-            'object': getObject(result.value),
-            'value': result.value,
-            'key': result.primaryKey
-          });
+          if (!(result.primaryKey in shownElements)) {
+            elements.push({
+              'object': getObject(result.value),
+              'value': result.value,
+              'key': result.primaryKey
+            });
+          }
 
-          clientTimestamp = result.value.timestamp;
+          shownElements[result.primaryKey] = result.primaryKey;
           result.continue();
         } else {
           callback(elements);
@@ -226,7 +225,7 @@
           var data = {
             'items_new': newItems,
             'items_delete': deletedItems,
-            'server_timestamp': serverTimestamp
+            'server_timestamp': parseFloat(localStorage['serverTimestamp']) || 0
           };
 
           console.log(newItems);
@@ -252,7 +251,8 @@
               updateItem(id, 'serverKey', response.itemsClient[i].server_key);
             }
 
-            serverTimestamp = response.serverTimestamp;
+            localStorage['serverTimestamp'] = response.serverTimestamp;
+            showItems();
           });
 
         });
@@ -297,6 +297,7 @@
       var todos = document.getElementById('todoItems');
       var tagFilter = document.getElementById('tagFilter');
       var tags = tagFilter.value ? tagFilter.value.replace(/\s/g, '').split(',') : [];
+      var shownElements = {};
 
       todos.innerHTML = "";
       tagFilter.value = "";
@@ -304,14 +305,17 @@
       if (tags.length) {
         console.log(tags);
 
-        getTaggedItems(tags[0], function(elements) {
-          console.log('callback');
-          console.log(elements);
+        for (var j = 0; j < tags.length; j++) {
+          getTaggedItems(tags[j], shownElements, function(elements) {
+            console.log('callback ' + j);
+            console.log(elements);
 
-          for (var i = 0; i < elements.length; i++) {
-            renderItem(elements[i]);
-          }
-        });
+            for (var i = 0; i < elements.length; i++) {
+              renderItem(elements[i]);
+            }
+          });
+        }
+
       } else {
         getAllItems(function(elements) {
           for (var i = 0; i < elements.length; i++) {
@@ -417,7 +421,8 @@
       var todos = document.getElementById("todoItems");
       var li = document.createElement("li");
       var x = document.createElement("button");
-      var t = document.createElement("span");
+      var h4 = document.createElement("h4");
+      var p = document.createElement("p");
 
       x.addEventListener("click", function() {
         deleteItem(item);
@@ -427,13 +432,21 @@
       x.innerHTML = "&times;";
       x.setAttribute("aria-hidden", "true")
 
-      li.className = "list-group-item"
+      if (row.serverKey) {
+        li.className = "list-group-item list-group-item-success"
+      } else {
+        li.className = "list-group-item list-group-item-danger"
+      }
+      h4.className = 'list-group-item-heading';
+      p.className = 'list-group-item-text';
       li.id = key;
 
-      t.textContent = row.text;
+      h4.textContent = row.text;
+      p.textContent = row.tags.join(', ');
 
-      li.appendChild(t);
-      li.appendChild(x);
+      li.appendChild(h4);
+      li.appendChild(p);
+      h4.appendChild(x);
       todos.appendChild(li);
     }
 
