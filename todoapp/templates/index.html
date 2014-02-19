@@ -31,8 +31,6 @@
             </div>
 
             <button id="save" type="button" class="btn btn-default">Save</button>
-            <button id="sync" type="button" class="btn btn-default">Sync</button>
-
           </form>
 
         </div>
@@ -216,6 +214,8 @@
     }
 
     function syncItems() {
+      console.log('syncItems');
+
       getNewItems(function (newItems) {
         getDeletedItems(function (deletedItems) {
           var data = {
@@ -450,11 +450,11 @@
       openDb();
 
       document.querySelector("#save").addEventListener("click", addClientItem, false);
-      document.querySelector("#sync").addEventListener("click", syncItems, false);
       document.querySelector("#show").addEventListener("click", showItems, false);
     }
 
     window.addEventListener("DOMContentLoaded", init, false);
+    window.addEventListener('online', syncItems);
   </script>
 
 </html>
