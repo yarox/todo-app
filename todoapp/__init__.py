@@ -9,7 +9,7 @@ import os
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, make_response, jsonify
 from werkzeug import DebuggedApplication
 
 from Crypto.Random import random
@@ -57,6 +57,13 @@ class Item(ndb.Model):
 
 
 # Views
+@app.route('/manifest')
+def manifest():
+    response = make_response(render_template('manifest.appcache'), 200)
+    response.headers["Content-Type"] = "text/cache-manifest"
+    return response
+
+
 @app.route('/', methods=['GET'])
 def main():
     client_id = str(uuid.UUID(int=random.getrandbits(128)))
