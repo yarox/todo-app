@@ -13,12 +13,12 @@
 
   <body>
 
-    <div class="alert alert-info alert-dismissable fade in" style="display: none">
-      <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-      <p></p>
-    </div>
+    <div id='header' class="panel panel-default">
+      <div class="alert alert-info alert-dismissable fade in" style="display: none">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        <p></p>
+      </div>
 
-    <div class="panel panel-default">
       <div class="page-header">
         <h1>TODO app <small>super simple TODO app</small></h1>
       </div>
@@ -459,7 +459,7 @@
         .attr('id', 'alert-online')
         .find('p').html('You went <strong>online</strong>')
         .parent()
-        .prependTo('body')
+        .prependTo('#header')
         .css('display', 'block');
 
       window.setTimeout(function()
@@ -474,7 +474,7 @@
         .attr('id', 'alert-offline')
         .find('p').html('You went <strong>offline</strong>')
         .parent()
-        .prependTo('body')
+        .prependTo('#header')
         .css('display', 'block');
 
       window.setTimeout(function()
