@@ -41,7 +41,7 @@ threadsafe: true
 
 handlers:
 - url: /.*
-  script: todo-app.app
+  script: todoapp.app
 
 - url: /static
   static_dir: /static
