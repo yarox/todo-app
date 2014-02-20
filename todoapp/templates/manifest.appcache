@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# 1392821970775
+# 139282197077
 
 CACHE:
 /
@@ -7,3 +7,4 @@ CACHE:
 {{ url_for('static', filename='css/bootstrap-theme.min.css') }}
 {{ url_for('static', filename='css/font-awesome.min.css') }}
 {{ url_for('static', filename='js/jquery-1.10.2.min.js') }}
+{{ url_for('static', filename='js/bootstrap.min.js') }}

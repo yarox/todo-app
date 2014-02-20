@@ -13,6 +13,11 @@
 
   <body>
 
+    <div class="alert alert-info alert-dismissable fade in" style="display: none">
+      <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+      <p></p>
+    </div>
+
     <div class="panel panel-default">
       <div class="page-header">
         <h1>TODO app <small>super simple TODO app</small></h1>
@@ -54,6 +59,7 @@
   </body>
 
   <script src="/static/js/jquery-1.10.2.min.js"></script>
+  <script src="/static/js/bootstrap.min.js"></script>
   <script>
     $.postJSON = function(url, data, callback) {
       $.ajax({
@@ -446,6 +452,36 @@
       todos.appendChild(li);
     }
 
+    function online() {
+      console.log('online');
+
+      $(".alert").clone(true)
+        .attr('id', 'alert-online')
+        .find('p').html('You went <strong>online</strong>')
+        .parent()
+        .prependTo('body')
+        .css('display', 'block');
+
+      window.setTimeout(function()
+        { $('#alert-online').alert('close');
+      }, 2000);
+    }
+
+    function offline() {
+      console.log('offline');
+
+      $(".alert").clone(true)
+        .attr('id', 'alert-offline')
+        .find('p').html('You went <strong>offline</strong>')
+        .parent()
+        .prependTo('body')
+        .css('display', 'block');
+
+      window.setTimeout(function()
+        { $('#alert-offline').alert('close');
+      }, 2000);
+    }
+
     function init() {
       openDb();
 
@@ -456,7 +492,8 @@
     }
 
     window.addEventListener("DOMContentLoaded", init, false);
-    window.addEventListener('online', syncItems);
+    window.addEventListener('offline', offline);
+    window.addEventListener('online', online);
   </script>
 
 </html>
