@@ -9,10 +9,8 @@ import os
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
-from flask import Flask, request, render_template, make_response, jsonify
+from flask import Flask, request, render_template, make_response, jsonify, send_file
 from werkzeug import DebuggedApplication
-
-from Crypto.Random import random
 
 
 # Config
@@ -66,10 +64,8 @@ def manifest():
 
 @app.route('/', methods=['GET'])
 def main():
-    client_id = str(uuid.UUID(int=random.getrandbits(128)))
-    logging.info('new client {0}'.format(client_id))
-
-    return render_template('index.html', client_id=client_id)
+    logging.info('new client')
+    return render_template('angular.html')
 
 
 @app.route('/sync', methods=['POST'])
