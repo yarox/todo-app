@@ -68,6 +68,24 @@ def main():
     return render_template('angular.html')
 
 
+@app.route('/items', methods=['GET'])
+def get_items():
+    logging.info('get_items')
+
+    items = [
+        {'name': 'Some task',
+         'tags': ['tag', 'other tag']},
+        {'name': 'Another important task',
+         'tags': ['important']},
+        {'name': 'Some other task here',
+         'tags': ['tag', 'not important', 'other']},
+         {'name': 'Task with no tags',
+          'tags': []}
+    ]
+
+    return jsonify(items=items)
+
+
 @app.route('/sync', methods=['POST'])
 def sync():
     logging.info('sync request')

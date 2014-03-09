@@ -11,16 +11,14 @@
 
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.0-beta.1/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.0-beta.1/angular-resource.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
 
     <script src="/static/js/app.js"></script>
     <script src="/static/js/filters.js"></script>
+    <script src="/static/js/services.js"></script>
     <script src="/static/js/controllers.js"></script>
 
-    <!-- <script src="js/app.js"></script>
-    <script src="js/animations.js"></script>
-    <script src="js/controllers.js"></script>
-    <script src="js/services.js"></script> -->
   </head>
 
   {% raw %}
@@ -42,13 +40,13 @@
 
           <form class="" role="form">
             <div class="form-group">
-              <input type="text" class="form-control" id="todo" placeholder="Enter some text">
+              <input type="text" ng-model="itemText" class="form-control" id="todo" placeholder="Enter some text">
             </div>
             <div class="form-group">
-              <input type="text" class="form-control" id="tags" placeholder="Enter, some, tags">
+              <input type="text" ng-model="itemTags" class="form-control" id="tags" placeholder="Enter, some, tags">
             </div>
 
-            <button id="save" type="button" class="btn btn-default">Save</button>
+            <button id="save" type="button" ng-click="addItem(itemText, itemTags)" class="btn btn-default">Save</button>
           </form>
 
         </div>
@@ -58,7 +56,7 @@
 
             <form class="form-inline" role="form">
               <div class="form-group">
-                <input type="text" class="form-control" id="tagFilter" placeholder="tags or leave empty">
+                <input type="text" ng-model="itemFilter" class="form-control" id="tagFilter" placeholder="tags or leave empty">
               </div>
               <button id="show" type="button" class="btn btn-default">Show tasks</button>
             </form>
@@ -66,12 +64,12 @@
           </div>
 
           <ul id="todoItems" class="list-group">
-            <li ng-repeat="item in items" class="list-group-item">
+            <li ng-repeat="item in items | filter:itemFilter" class="list-group-item">
               <h4 class="list-group-item-heading">
-                {{item.name}}
-                <button type="button" class="close" aria-hidden="true">&times;</button>
+                {{item.value.text}}
+                <button type="button" ng-click="deleteItem(item.key)" class="close" aria-hidden="true">&times;</button>
               </h4>
-              <p class="list-group-item-text">{{item.tags | join}}</p>
+              <p class="list-group-item-text">{{item.value.tags | join}}</p>
              </li>
           </ul>
 
